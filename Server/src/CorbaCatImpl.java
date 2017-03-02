@@ -1,7 +1,5 @@
 import CorbaCatApp.ICorbaCatPOA;
-import org.omg.CORBA.*;
-import org.omg.PortableServer.*;
-import org.omg.PortableServer.POA;
+import org.omg.CORBA.ORB;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -10,7 +8,7 @@ import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
+import java.util.Random;
 
 public class CorbaCatImpl extends ICorbaCatPOA {
 
@@ -56,6 +54,7 @@ public class CorbaCatImpl extends ICorbaCatPOA {
             if (resultSet.next()) {
                 id = resultSet.getInt(1);
             }
+            connection.close();
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -78,6 +77,7 @@ public class CorbaCatImpl extends ICorbaCatPOA {
                 id = resultSet.getInt(1);
                 idJuego = id;
             }
+            connection.close();
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -86,7 +86,7 @@ public class CorbaCatImpl extends ICorbaCatPOA {
 
     @Override
     public boolean registrarCoordenadas(int i, int i1, int i2) {
-        boolean b = false;
+        boolean b;
         try {
             Connection connection = conectorJDBC.connectToMysqlDB("corba_cat",
                     "corba_cat",
@@ -95,6 +95,7 @@ public class CorbaCatImpl extends ICorbaCatPOA {
             PreparedStatement statement = connection.prepareStatement("INSERT INTO Coordenada VALUES(-1, "+i+","+i1+","+i2+", 1)");
             statement.executeUpdate();
             b = true;
+            connection.close();
         } catch (Exception e) {
             e.printStackTrace();
             b = false;
@@ -117,12 +118,59 @@ public class CorbaCatImpl extends ICorbaCatPOA {
             List<Par> semiLista = new ArrayList<>();
             semiLista.add(par);
             actualizarMatriz(semiLista);
+            coordenadaX = par.getX();
+            coordenadaY = par.getY();
             return par.getX();
         }
     }
 
     private Par seleccionarSmartCoordenada() {
-        return new Par(0,0,0);
+        List<Par> posibles = new ArrayList<>();
+        for (Par parDisponible : disponibles()) {
+            for (Par parDelServidor : delServidor()) {
+                if (enLinea(parDisponible, parDelServidor))
+                    posibles.add(parDisponible);
+            }
+        }
+        if (!posibles.isEmpty()) {
+            Random random = new Random();
+            Par par = posibles.get(random.nextInt(posibles.size()));
+            return par;
+        } else {
+            return new Par(10, 10, 0);
+        }
+    }
+
+    private boolean enLinea(Par par1, Par par2) {
+        return par1.getX() == par2.getX() ||
+                par1.getY() == par2.getY() ||
+                ((par1.getX() == par1.getY()) && (par2.getX() == par2.getY())) ||
+                (((par1.getX() == 0) && (par1.getY() == 2)) && ((par2.getX() == 2) && (par1.getY() == 0))) ||
+                (((par1.getX() == 2) && (par1.getY() == 0) && ((par2.getX() == 0) && (par1.getY() == 2)))) ||
+                (((par1.getX() == 1) && (par1.getY() == 1) && ((par2.getX() == 0) && (par1.getY() == 2)))) ||
+                (((par1.getX() == 1) && (par1.getY() == 1) && ((par2.getX() == 2) && (par1.getY() == 0)))) ||
+                (((par1.getX() == 2) && (par1.getY() == 0) && ((par2.getX() == 1) && (par1.getY() == 1)))) ||
+                (((par1.getX() == 0) && (par1.getY() == 2) && ((par2.getX() == 1) && (par1.getY() == 1))));
+    }
+
+    private List<Par> disponibles() {
+        List<Par> list = matriz.getAll();
+        List<Par> disponibles = new ArrayList<>();
+        list.forEach(p -> {
+            if (p.getDuenio() == 2)
+                disponibles.add(p);
+        });
+        return disponibles;
+    }
+
+    private List<Par> delServidor() {
+        List<Par> list = matriz.getAll();
+        List<Par> delServidor = new ArrayList<>();
+        list.forEach(p -> {
+            if (p.getDuenio() == 0)
+                delServidor.add(p);
+        });
+        return delServidor;
     }
 
     private boolean preguntarPorCentro() {
@@ -157,20 +205,6 @@ public class CorbaCatImpl extends ICorbaCatPOA {
         }
     }
 
-    private HashMap<Integer, Integer> obtenerMatriz() {
-        HashMap<Integer, Integer> coordenadas = new HashMap<>();
-        coordenadas.put(0,0);
-        coordenadas.put(0,1);
-        coordenadas.put(0,2);
-        coordenadas.put(1,0);
-        coordenadas.put(1,1);
-        coordenadas.put(1,2);
-        coordenadas.put(2,0);
-        coordenadas.put(2,1);
-        coordenadas.put(2,2);
-        return coordenadas;
-    }
-
     @Override
     public int obtenerJugadaY() {
         return coordenadaY;
@@ -190,6 +224,7 @@ public class CorbaCatImpl extends ICorbaCatPOA {
                 Par par = new Par(resultSet.getInt("x"), resultSet.getInt("y"), 1);
                 lista.add(par);
             }
+            conectorJDBC.cerrarConexion();
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -210,6 +245,7 @@ public class CorbaCatImpl extends ICorbaCatPOA {
                 Par par = new Par(resultSet.getInt("x"), resultSet.getInt("y"), 0);
                 lista.add(par);
             }
+            conectorJDBC.cerrarConexion();
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -220,7 +256,7 @@ public class CorbaCatImpl extends ICorbaCatPOA {
         private int x;
         private int y;
         //0 = Servidor, 1 = Cliente, 2 = Nadie
-        int duenio;
+        private int duenio;
 
         public Par(int x, int y, int duenio) {
             this.x = x;
@@ -347,6 +383,20 @@ public class CorbaCatImpl extends ICorbaCatPOA {
 
         public void setPar9(Par par9) {
             this.par9 = par9;
+        }
+
+        public List<Par> getAll() {
+            List<Par> list = new ArrayList<>();
+            list.add(par1);
+            list.add(par2);
+            list.add(par3);
+            list.add(par4);
+            list.add(par5);
+            list.add(par6);
+            list.add(par7);
+            list.add(par8);
+            list.add(par9);
+            return list;
         }
     }
 
