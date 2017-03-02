@@ -7,19 +7,11 @@ module CorbaCatApp {
     //Circulo o tacha es un valor entre 0 y 1
     long registraJuego(in long idJugador, in long circulo_tacha);
 
-    struct Score {
-      long id_score;
-      long score;
-      long id_juego;
-    };
-
-    typedef sequence<Score> Scores;
-
-    Scores consultarTodosScore();
-
-    Score consultarScore(in long id_juego);
-
     boolean registrarCoordenadas(in long x, in long y, in long id_juego);
+
+    long obtenerJugadaX();
+
+    long obtenerJugadaY();
 
   };
 };
