@@ -7,11 +7,13 @@ module CorbaCatApp {
     //Circulo o tacha es un valor entre 0 y 1
     long registraJuego(in long idJugador, in long circulo_tacha);
 
-    boolean registrarCoordenadas(in long x, in long y, in long id_juego);
+    boolean registrarCoordenadas(in long x, in long y, in long id_juego, in long tipo_jugador);
 
     long obtenerJugadaX();
 
     long obtenerJugadaY();
+
+    boolean terminarJuego(in long id_juego);
 
   };
 };

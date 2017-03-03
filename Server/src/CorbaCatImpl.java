@@ -6,7 +6,6 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.Statement;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Random;
 
@@ -47,7 +46,7 @@ public class CorbaCatImpl extends ICorbaCatPOA {
                     "corba_cat",
                     "corba_cat",
                     "localhost");
-            PreparedStatement statement = connection.prepareStatement("INSERT INTO Jugador VALUES(-1, '"+s+"')",
+            PreparedStatement statement = connection.prepareStatement("INSERT INTO Jugador (nombre_jugador) VALUES('"+s+"')",
                     Statement.RETURN_GENERATED_KEYS);
             statement.executeUpdate();
             ResultSet resultSet = statement.getGeneratedKeys();
@@ -69,7 +68,7 @@ public class CorbaCatImpl extends ICorbaCatPOA {
                     "corba_cat",
                     "corba_cat",
                     "localhost");
-            PreparedStatement statement = connection.prepareStatement("INSERT INTO Juego VALUES(-1, "+i+","+i1+")",
+            PreparedStatement statement = connection.prepareStatement("INSERT INTO Juego (id_jugador, circulo_tacha) VALUES("+i+","+i1+")",
                     Statement.RETURN_GENERATED_KEYS);
             statement.executeUpdate();
             ResultSet resultSet = statement.getGeneratedKeys();
@@ -85,14 +84,14 @@ public class CorbaCatImpl extends ICorbaCatPOA {
     }
 
     @Override
-    public boolean registrarCoordenadas(int i, int i1, int i2) {
+    public boolean registrarCoordenadas(int x, int y, int idJuego, int tipoJugador) {
         boolean b;
         try {
             Connection connection = conectorJDBC.connectToMysqlDB("corba_cat",
                     "corba_cat",
                     "corba_cat",
                     "localhost");
-            PreparedStatement statement = connection.prepareStatement("INSERT INTO Coordenada VALUES(-1, "+i+","+i1+","+i2+", 1)");
+            PreparedStatement statement = connection.prepareStatement("INSERT INTO Coordenada (id_juego, x, y, tipo_jugador) VALUES("+idJuego+","+x+","+y+","+tipoJugador+")");
             statement.executeUpdate();
             b = true;
             connection.close();
@@ -111,6 +110,9 @@ public class CorbaCatImpl extends ICorbaCatPOA {
         actualizarMatriz(jugadasServidor);
         if (preguntarPorCentro()) {
             this.matriz.setPar5(new Par(1, 1, 0));
+            this.coordenadaX = 1;
+            this.coordenadaY = 1;
+            registrarCoordenadas(1, 1, idJuego, 0);
             return matriz.getPar5().getX();
         }
         else {
@@ -125,8 +127,9 @@ public class CorbaCatImpl extends ICorbaCatPOA {
     }
 
     private Par seleccionarSmartCoordenada() {
+        List<Par> disponibles = disponibles();
         List<Par> posibles = new ArrayList<>();
-        for (Par parDisponible : disponibles()) {
+        for (Par parDisponible : disponibles) {
             for (Par parDelServidor : delServidor()) {
                 if (enLinea(parDisponible, parDelServidor))
                     posibles.add(parDisponible);
@@ -135,6 +138,12 @@ public class CorbaCatImpl extends ICorbaCatPOA {
         if (!posibles.isEmpty()) {
             Random random = new Random();
             Par par = posibles.get(random.nextInt(posibles.size()));
+            registrarCoordenadas(par.getX(), par.getY(), idJuego, 0);
+            return par;
+        } else if (!disponibles.isEmpty()) {
+            Random random = new Random();
+            Par par = disponibles.get(random.nextInt(disponibles.size()));
+            registrarCoordenadas(par.getX(), par.getY(), idJuego, 0);
             return par;
         } else {
             return new Par(10, 10, 0);
@@ -210,6 +219,25 @@ public class CorbaCatImpl extends ICorbaCatPOA {
         return coordenadaY;
     }
 
+    @Override
+    public boolean terminarJuego(int i) {
+        this.coordenadaX = 0;
+        this.coordenadaY = 0;
+        this.matriz = new Matriz(
+                new Par(0,0,2),
+                new Par(0,1,2),
+                new Par(0,2,2),
+                new Par(1,0,2),
+                new Par(1,1,2),
+                new Par(1,2,2),
+                new Par(2,0,2),
+                new Par(2,1,2),
+                new Par(2,2,2)
+        );
+        this.idJuego = 0;
+        return true;
+    }
+
     private List<Par> obtenerOcupadosCliente() {
         List<Par> lista = new ArrayList<>();
         try {
@@ -218,8 +246,9 @@ public class CorbaCatImpl extends ICorbaCatPOA {
                     "corba_cat",
                     "localhost");
             //tipo_jugador 1 = Cliente, tipo_jugador 0 = Servidor
-            ResultSet resultSet = conectorJDBC.getResultSet(connection,
-                    "SELECT x, y FROM Coordenada WHERE id_juego = "+idJuego+" AND tipo_jugador = 1)");
+            //tipo_jugador 1 = Cliente, tipo_jugador 0 = Servidor
+            PreparedStatement statement = connection.prepareStatement("SELECT * FROM Coordenada WHERE id_juego = "+idJuego+" AND tipo_jugador = 1");
+            ResultSet resultSet = statement.executeQuery();
             while (resultSet.next()) {
                 Par par = new Par(resultSet.getInt("x"), resultSet.getInt("y"), 1);
                 lista.add(par);
@@ -239,8 +268,8 @@ public class CorbaCatImpl extends ICorbaCatPOA {
                     "corba_cat",
                     "localhost");
             //tipo_jugador 1 = Cliente, tipo_jugador 0 = Servidor
-            ResultSet resultSet = conectorJDBC.getResultSet(connection,
-                    "SELECT x, y FROM Coordenada WHERE id_juego = "+idJuego+" AND tipo_jugador = 0)");
+            PreparedStatement statement = connection.prepareStatement("SELECT * FROM Coordenada WHERE id_juego = "+idJuego+" AND tipo_jugador = 0");
+            ResultSet resultSet = statement.executeQuery();
             while (resultSet.next()) {
                 Par par = new Par(resultSet.getInt("x"), resultSet.getInt("y"), 0);
                 lista.add(par);
